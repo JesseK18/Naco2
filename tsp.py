@@ -119,9 +119,16 @@ def plot_europe(
 
     keys = keys.transformed(mpl.transforms.Affine2D().rotate_deg(180))
 
+    
+    
+    path_to_data = "/Users/jessekroll/Desktop/Natural Computing/Naco2/ne_110m_admin_0_countries.shp"
+
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        world = geopandas.read_file(geopandas.datasets.get_path("naturalearth_lowres"))
+        world = geopandas.read_file(path_to_data)
+    # with warnings.catch_warnings():
+    #     warnings.simplefilter("ignore")
+    #     world = geopandas.read_file(geopandas.datasets.get_path("naturalearth_lowres"))
 
     world.plot(ax=ax, color="lightgray", edgecolor="black", alpha=0.5)
 
@@ -491,8 +498,8 @@ class GA:
                 fitness_scores = self.evaluate(population)
             repetition_array += timestep_array / N_REPETITIONS
             repetition_array_b += timestep_array_b / N_REPETITIONS
-            print(f'Minimal route of population:{np.min(fitness_scores):.2f}km')
-            print(f'Route: {population[np.argmin(fitness_scores)]}')
+            # print(f'Minimal route of population:{np.min(fitness_scores):.2f}km')
+            # print(f'Route: {population[np.argmin(fitness_scores)]}')
             self.tsp.plot_route(population[np.argmin(fitness_scores)], np.min(fitness_scores))
         return repetition_array, repetition_array_b
 
@@ -563,6 +570,34 @@ class GA:
       plt.show()
 
 
+class ACO:  
+    """Ant Colony Optimization experiment and plot"""
+
+    def __init__(self, tsp: TSP, ANT_POPULATION_SIZE=100, base_mutation_rate=0.1, increase_rate=0.05, decrease_rate=0.01):
+        self.ANT_POPULATION_SIZE = ANT_POPULATION_SIZE
+        self.ANT_POPULATION = np.array([np.random.permutation(tsp.dim) for _ in range(self.POPULATION_SIZE)])
+        self.tsp = tsp
+        self.alpha = 1
+        self.beta = 3
+        #TODO: add more parameters
+        
+        self.best_fitness = float('inf')
+        
+    # Evaluating all routes, lengths of all total path lengths
+    def evaluate(self, population):
+        fitness_scores = np.array([tsp(chromosome) for chromosome in population])
+        return fitness_scores
+
+    #add more functions like GA 
+    
+    # Resetting population before starting new experiment
+    def reset(self, population_size=30):
+        self.POPULATION = np.array([np.random.permutation(self.tsp.dim) for _ in range(int(population_size))])
+    
+
+
+
+
 
 class RandomSearch():
     """Random searc, and plot of random path lenghts"""
@@ -620,28 +655,28 @@ if __name__ == "__main__":
     np.random.seed(42)
 
     # Experiment settings
-    POPULATION_SIZE = 50
-    N_REPETITIONS = 8
-    N_TIMESTEPS = 2500
-    GUESSES = 100
+    POPULATION_SIZE = 5
+    N_REPETITIONS = 3
+    N_TIMESTEPS = 5
+    GUESSES = 10
     
     #Plot best random paths search
     with TSP(plot=False) as tsp:
       ga = GA(tsp, POPULATION_SIZE=POPULATION_SIZE)
     
-      # # Random baseline
+      # Random baseline
       ra = RandomSearch(tsp, guesses=GUESSES)
       ra.guessing_paths()
       ra.plot_random_paths()
     
       # Testing: run the experiment function 
       ga.experiment(N_REPETITIONS, N_TIMESTEPS, 'adaptive', mutation_rate=0.15, mutation='all', population_size= 50)
-      # ga.plot(array, best_array) #plot best path and average path over timesteps over repetitions
+      #ga.plot(array, best_array) #plot best path and average path over timesteps over repetitions
 
-      # Experiment 1: comparing mutations
+    # Experiment 1: comparing mutations
       ga.mutation_comparison(N_REPETITIONS, N_TIMESTEPS, mutation_rate=0.3)
 
-      # Experiment 2: comparing hyperparameter settings for best mutations
+    #   # Experiment 2: comparing hyperparameter settings for best mutations
       ga.mutation_rate_comparison(N_REPETITIONS, N_TIMESTEPS, mutation_rate=0.1)
       ga.population_comparison(N_REPETITIONS, N_TIMESTEPS) 
       
