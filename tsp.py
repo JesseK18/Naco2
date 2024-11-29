@@ -572,29 +572,133 @@ class GA:
 
 class ACO:  
     """Ant Colony Optimization experiment and plot"""
-
-    def __init__(self, tsp: TSP, ANT_POPULATION_SIZE=100, base_mutation_rate=0.1, increase_rate=0.05, decrease_rate=0.01):
-        self.ANT_POPULATION_SIZE = ANT_POPULATION_SIZE
-        self.ANT_POPULATION = np.array([np.random.permutation(tsp.dim) for _ in range(self.POPULATION_SIZE)])
+    def __init__(self, tsp: TSP, N_ANTS=100, alpha=1, beta=2, rho=0.5, Q=100, N_ITERATIONS=10): #or TIME_STEPS
+        # self.ANT_POPULATION_SIZE = ANT_POPULATION_SIZE
+        # self.ANT_POPULATION = np.array([np.random.permutation(tsp.dim) for _ in range(self.ANT_POPULATION_SIZE)])
         self.tsp = tsp
-        self.alpha = 1
-        self.beta = 2
-        #TODO: add more parameters
+        self.alpha = alpha
+        self.beta = beta
+        self.rho = rho  
+        self.Q = Q
+        self.N_ANTS = N_ANTS
+        self.N_ITERATIONS = N_ITERATIONS
+        self.best_length = float('inf')
+        self.best_tour = None
+        # pheromone matrix
+        self.tau = np.ones((tsp.dim, tsp.dim)) 
+        # eta, heruistic info (inverse of diatances)
+        self.coords = tsp.data[['capital_lat', 'capital_lng']].values
+        self.D = np.zeros((tsp.dim, tsp.dim))
+        for i in range(tsp.dim):
+            for j in range(tsp.dim):
+                if i != j:
+                    self.D[i][j] = haversine(self.coords[i][0], self.coords[i][1], self.coords[j][0], self.coords[j][1])
+                else:
+                    self.D[i][j] = np.inf
+        self.eta = 1.0 / self.D
         
-        self.best_fitness = float('inf')
-        
-    # Evaluating all routes, lengths of all total path lengths
-    def evaluate(self, population):
-        fitness_scores = np.array([tsp(chromosome) for chromosome in population])
-        return fitness_scores
+    def construct_solutions(self):
+        """Construct solutions for every ant."""
+        all_tours = []
+        for ant in range(self.N_ANTS):
+            unvisited = set(range(tsp.dim))
+            # ranodm starting point
+            current_city = np.random.randint(0, tsp.dim)
+            tour = [current_city]
+            unvisited.remove(current_city)
 
-    #add more functions like GA 
+            while unvisited:
+                current = tour[-1]
+                unvisited_list = list(unvisited)
+                probabilities = []
+                for city in unvisited_list:
+                    tau_ij = self.tau[current][city]
+                    eta_ij = self.eta[current][city]
+                    prob = (tau_ij ** self.alpha) * (eta_ij ** self.beta)
+                    probabilities.append(prob)
+
+                probabilities = np.array(probabilities)
+                if probabilities.sum() == 0:
+                    probabilities = np.ones_like(probabilities)
+                probabilities = probabilities / probabilities.sum()
+
+                # probs based next city selection
+                next_city = np.random.choice(unvisited_list, p=probabilities)
+                tour.append(next_city)
+                unvisited.remove(next_city)
+            all_tours.append(tour)
+        return all_tours
+    
+        
+        
+
+    def evaluate(self, tours):
+        """Evaluating the tours based on fitness and update if it is the best tour."""
+        lengths = []
+        for tour in tours:
+            length = self.tsp(np.array(tour))
+            lengths.append(length)
+            if length < self.best_length:
+                self.best_length = length
+                self.best_tour = tour
+        return lengths
+
+    
+    def update_pheromones(self, tours, lengths):
+        """Updating the pheromone matrix."""
+        # Evaporation formula
+        self.tau = (1 - self.rho) * self.tau
+
+        for tour, length in zip(tours, lengths):
+            delta_tau = self.Q / length
+            for i in range(len(tour) - 1):
+                city_i = tour[i]
+                city_j = tour[i + 1]
+                self.tau[city_i][city_j] += delta_tau
+                self.tau[city_j][city_i] += delta_tau  
+
+            # Complete tour by adding the edge from last to first city, But Leiden starting point?
+            city_i = tour[-1]
+            city_j = tour[0]
+            self.tau[city_i][city_j] += delta_tau
+            self.tau[city_j][city_i] += delta_tau
+
+    
+    def experiment(self):
+        """Run the ACO algorithm. return best and average lengths."""
+        average_lengths = []
+        best_lengths = []
+        for iteration in range(self.N_ITERATIONS):
+            tours = self.construct_solutions()
+            lengths = self.evaluate(tours)
+            self.update_pheromones(tours, lengths)
+            average_lengths.append(np.mean(lengths))
+            best_lengths.append(self.best_length)
+            print(f"Iteration {iteration + 1}, best length: {self.best_length:.2f}")
+            # Optional: plot the current best tour
+            # if iteration % 10 == 0 or iteration == self.N_ITERATIONS - 1:
+            #     self.tsp.plot_route(np.array(self.best_tour), self.best_length)
+
+        return average_lengths, best_lengths
+
+    
+    def plot(self, average_lengths, best_lengths):
+        """Plot the performance of the ACO algorithm on best and average lengths."""
+        plt.figure(figsize=(10, 6))
+        plt.plot(average_lengths, label="Average Length")
+        plt.plot(best_lengths, label="Best Length", color="red")
+        plt.xlabel("Iteration")
+        plt.ylabel("Tour Length")
+        plt.title("ACO-Tour Length over Iterations")
+        plt.legend()
+        plt.grid(True)
+        plt.show()
     
     # Resetting population before starting new experiment
     def reset(self, population_size=30):
-        self.POPULATION = np.array([np.random.permutation(self.tsp.dim) for _ in range(int(population_size))])
+        pass
+        #self.POPULATION = np.array([np.random.permutation(self.tsp.dim) for _ in range(int(population_size))])
     
-
 
 
 
@@ -656,30 +760,36 @@ if __name__ == "__main__":
 
     # Experiment settings
     POPULATION_SIZE = 5
-    N_REPETITIONS = 3
+    N_REPETITIONS = 100
     N_TIMESTEPS = 5
     GUESSES = 10
+    N_ANTS = 30
+    N_ITERATIONS = 100
+    
     
     #Plot best random paths search
     with TSP(plot=False) as tsp:
-      ga = GA(tsp, POPULATION_SIZE=POPULATION_SIZE)
+    #   ga = GA(tsp, POPULATION_SIZE=POPULATION_SIZE)
     
-      # Random baseline
-      ra = RandomSearch(tsp, guesses=GUESSES)
-      ra.guessing_paths()
-      ra.plot_random_paths()
+    #   # Random baseline
+    #   ra = RandomSearch(tsp, guesses=GUESSES)
+    #   ra.guessing_paths()
+    #   ra.plot_random_paths()
     
-      # Testing: run the experiment function 
-      ga.experiment(N_REPETITIONS, N_TIMESTEPS, 'adaptive', mutation_rate=0.15, mutation='all', population_size= 50)
-      #ga.plot(array, best_array) #plot best path and average path over timesteps over repetitions
+    #   # Testing: run the experiment function 
+    #   ga.experiment(N_REPETITIONS, N_TIMESTEPS, 'adaptive', mutation_rate=0.15, mutation='all', population_size= 50)
+    #   #ga.plot(array, best_array) #plot best path and average path over timesteps over repetitions
 
-    # Experiment 1: comparing mutations
-      ga.mutation_comparison(N_REPETITIONS, N_TIMESTEPS, mutation_rate=0.3)
+    # # Experiment 1: comparing mutations
+    #   ga.mutation_comparison(N_REPETITIONS, N_TIMESTEPS, mutation_rate=0.3)
 
-    #   # Experiment 2: comparing hyperparameter settings for best mutations
-      ga.mutation_rate_comparison(N_REPETITIONS, N_TIMESTEPS, mutation_rate=0.1)
-      ga.population_comparison(N_REPETITIONS, N_TIMESTEPS) 
+    # #   # Experiment 2: comparing hyperparameter settings for best mutations
+    #   ga.mutation_rate_comparison(N_REPETITIONS, N_TIMESTEPS, mutation_rate=0.1)
+    #   ga.population_comparison(N_REPETITIONS, N_TIMESTEPS) 
       
-      # Experiment 3: comparing adaptive mutation GA to normal mutation GA
-      ga.adaptive_mutation_comparison(N_REPETITIONS, N_TIMESTEPS)
-
+    #   # Experiment 3: comparing adaptive mutation GA to normal mutation GA
+    #   ga.adaptive_mutation_comparison(N_REPETITIONS, N_TIMESTEPS)
+        # Experiment 4: ACO
+        aco = ACO(tsp, N_ANTS=N_ANTS, alpha=1, beta=2.0, rho=0.5, Q=100, N_ITERATIONS=N_ITERATIONS)
+        average_lengths, best_lengths = aco.experiment()
+        aco.plot(average_lengths, best_lengths)
