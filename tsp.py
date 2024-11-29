@@ -578,7 +578,7 @@ class ACO:
         self.ANT_POPULATION = np.array([np.random.permutation(tsp.dim) for _ in range(self.POPULATION_SIZE)])
         self.tsp = tsp
         self.alpha = 1
-        self.beta = 3
+        self.beta = 2
         #TODO: add more parameters
         
         self.best_fitness = float('inf')
