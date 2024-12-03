@@ -778,8 +778,7 @@ class ACO:
         return all_tours
     
         
-        
-
+    
     def evaluate(self, tours):
         """Evaluating the tours based on fitness and update if it is the best tour."""
         lengths = []
@@ -843,18 +842,6 @@ class ACO:
         plt.legend()
         plt.grid(True)
         plt.show()
-    
-    # Resetting population before starting new experiment
-    def reset(self):
-        initial_tour = np.random.permutation(self.tsp.dim)
-        initial_length = self.tsp(initial_tour)
-        self.tau_max = 1 / (self.rho * initial_length)
-        self.tau_min = self.tau_max / 10  # Common practice is tau_min = tau_max / 10
-        
-        # Initialize pheromone matrix to tau_max
-        self.tau = np.full((self.tsp.dim, self.tsp.dim), self.tau_max)
-        self.best_length = float("inf")
-        self.best_tour = None
 
 
 class RandomSearch():
@@ -953,7 +940,7 @@ if __name__ == "__main__":
         # aco.plot(average_lengths, best_lengths)
         
         # Experiment 5: ACO with MMAS, set rho between 0.02 and 0.2
-        acommas = ACO_MMAS(tsp, N_ANTS=N_ANTS, alpha=1, beta=5, rho=0.1, Q=2400, N_ITERATIONS=N_ITERATIONS)
+        acommas = ACO_MMAS(tsp, N_ANTS=N_ANTS, alpha=1, beta=5, rho=0.1, Q=24000, N_ITERATIONS=N_ITERATIONS)
         
         average_lengths, best_lengths = acommas.experiment()
         acommas.plot(average_lengths, best_lengths)
