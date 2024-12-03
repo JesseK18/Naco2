@@ -716,6 +716,137 @@ class ACO_MMAS:
         plt.show()
     
 
+
+
+class ACO_EAS:
+    """Ant Colony Optimization with Eltist Ant System variant."""
+    def __init__(self, tsp: TSP, N_ANTS=100, alpha=1, beta=2, rho=0.1, Q=100, N_ITERATIONS=10, elitism_factor=5):
+        self.tsp = tsp
+        self.alpha = alpha
+        self.beta = beta
+        self.rho = rho  
+        self.Q = Q
+        self.N_ANTS = N_ANTS
+        self.N_ITERATIONS = N_ITERATIONS
+        self.elitism_factor = elitism_factor  # New parameter for EAS
+        self.best_length = float('inf')
+        self.best_tour = None
+        # Pheromone matrix
+        self.tau = np.ones((tsp.dim, tsp.dim)) 
+        # Heuristic information (inverse of distances)
+        self.coords = tsp.data[['capital_lat', 'capital_lng']].values
+        self.D = np.zeros((tsp.dim, tsp.dim))
+        for i in range(tsp.dim):
+            for j in range(tsp.dim):
+                if i != j:
+                    self.D[i][j] = haversine(
+                        self.coords[i][0], self.coords[i][1],
+                        self.coords[j][0], self.coords[j][1]
+                    )
+                else:
+                    self.D[i][j] = np.inf
+        self.eta = 1.0 / self.D
+
+    def construct_solutions(self):
+        """Construct solutions for every ant."""
+        all_tours = []
+        for ant in range(self.N_ANTS):
+            unvisited = set(range(self.tsp.dim))
+            current_city = np.random.randint(0, self.tsp.dim)
+            tour = [current_city]
+            unvisited.remove(current_city)
+
+            while unvisited:
+                current = tour[-1]
+                unvisited_list = list(unvisited)
+                probabilities = []
+                for city in unvisited_list:
+                    tau_ij = self.tau[current][city]
+                    eta_ij = self.eta[current][city]
+                    prob = (tau_ij ** self.alpha) * (eta_ij ** self.beta)
+                    probabilities.append(prob)
+
+                probabilities = np.array(probabilities)
+                if probabilities.sum() == 0:
+                    probabilities = np.ones_like(probabilities)
+                probabilities = probabilities / probabilities.sum()
+                # Probs selection
+                next_city = np.random.choice(unvisited_list, p=probabilities)
+                tour.append(next_city)
+                unvisited.remove(next_city)
+            all_tours.append(tour)
+        return all_tours
+
+    def evaluate(self, tours):
+        """Evaluate tours and update the best tour."""
+        lengths = []
+        for tour in tours:
+            length = self.tsp(np.array(tour))
+            lengths.append(length)
+            if length < self.best_length:
+                self.best_length = length
+                self.best_tour = tour
+        return lengths
+
+    def update_pheromones(self, tours, lengths):
+        """Update the pheromone matrix with Elitist Ant System."""
+        # Evaporation
+        self.tau *= (1 - self.rho)
+
+        # Pheromone deposit by all ants like always
+        for tour, length in zip(tours, lengths):
+            delta_tau = self.Q / length
+            for i in range(len(tour) - 1):
+                city_i = tour[i]
+                city_j = tour[i + 1]
+                self.tau[city_i][city_j] += delta_tau
+                self.tau[city_j][city_i] += delta_tau
+
+            # Complete the tour
+            city_i = tour[-1]
+            city_j = tour[0]
+            self.tau[city_i][city_j] += delta_tau
+            self.tau[city_j][city_i] += delta_tau
+
+        # EAS factor, extra pheromone deposit for the best ant
+        delta_tau_best = self.Q / self.best_length
+        for i in range(len(self.best_tour) - 1):
+            city_i = self.best_tour[i]
+            city_j = self.best_tour[i + 1]
+            self.tau[city_i][city_j] += self.elitism_factor * delta_tau_best
+            self.tau[city_j][city_i] += self.elitism_factor * delta_tau_best
+
+        # Complete the best tour
+        city_i = self.best_tour[-1]
+        city_j = self.best_tour[0]
+        self.tau[city_i][city_j] += self.elitism_factor * delta_tau_best
+        self.tau[city_j][city_i] += self.elitism_factor * delta_tau_best
+
+    def experiment(self):
+        """Run the ACO algorithm with Elitist Ant System."""
+        average_lengths = []
+        best_lengths = []
+        for iteration in range(self.N_ITERATIONS):
+            tours = self.construct_solutions()
+            lengths = self.evaluate(tours)
+            self.update_pheromones(tours, lengths)
+            average_lengths.append(np.mean(lengths))
+            best_lengths.append(self.best_length)
+            print(f"Iteration {iteration + 1}, best length: {self.best_length:.2f}")
+        return average_lengths, best_lengths
+
+    def plot(self, average_lengths, best_lengths):
+        """Plot the performance of the ACO algorithm."""
+        plt.figure(figsize=(10, 6))
+        plt.plot(average_lengths, label="Average Length")
+        plt.plot(best_lengths, label="Best Length", color="red")
+        plt.xlabel("Iteration")
+        plt.ylabel("Tour Length")
+        plt.title("ACO EAS- Tour Length over Iterations")
+        plt.legend()
+        plt.grid(True)
+        plt.show()
+
 class ACO:  
     """Ant Colony Optimization experiment and plot"""
     def __init__(self, tsp: TSP, N_ANTS=100, alpha=1, beta=2, rho=0.1, Q=100, N_ITERATIONS=10): #or TIME_STEPS
@@ -908,7 +1039,7 @@ if __name__ == "__main__":
     GUESSES = 10
     #ACO 
     N_ANTS = 50
-    N_ITERATIONS = 1000
+    N_ITERATIONS = 2000
     
     
     #Plot best random paths search
@@ -940,7 +1071,13 @@ if __name__ == "__main__":
         # aco.plot(average_lengths, best_lengths)
         
         # Experiment 5: ACO with MMAS, set rho between 0.02 and 0.2
-        acommas = ACO_MMAS(tsp, N_ANTS=N_ANTS, alpha=1, beta=5, rho=0.1, Q=24000, N_ITERATIONS=N_ITERATIONS)
+        # acommas = ACO_MMAS(tsp, N_ANTS=N_ANTS, alpha=1, beta=5, rho=0.1, Q=24000, N_ITERATIONS=N_ITERATIONS)
         
-        average_lengths, best_lengths = acommas.experiment()
-        acommas.plot(average_lengths, best_lengths)
+        # average_lengths, best_lengths = acommas.experiment()
+        # acommas.plot(average_lengths, best_lengths)
+        
+        # Experiment 6: ACO with EAS, set rho between 0.02 and 0.2
+        aco_eas = ACO_EAS(tsp, N_ANTS=N_ANTS, alpha=1, beta=2, rho=0.05, Q=1, N_ITERATIONS=N_ITERATIONS, elitism_factor=8)
+
+        average_lengths, best_lengths = aco_eas.experiment()
+        aco_eas.plot(average_lengths, best_lengths)
