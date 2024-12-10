@@ -23,11 +23,9 @@ import matplotlib.pyplot as plt
 import svgpath2mpl
 import geopandas
 import ioh
-#rom ioh.problem import TSP as TSPProblem
 from ioh import get_problem, ProblemClass
-# from ioh import IntegerProblem
-# from ioh import RealProblem
-# from ioh import PermutationProblem
+from ioh import logger
+#from ioh.logger import Analyzer
 
 
 DATA = """hckey,capital,capital_lat,capital_lng
@@ -296,45 +294,6 @@ class TSP:
             plt.pause(0.0001)
             plt.show()
 
-
-# class TSPProblem(ioh.problem.IntegerSingleObjective):
-#     def __init__(self, instance, dimension):
-#         super().__init__(
-#             dimension=dimension,
-#             instance=instance,
-#             problem_id=1,
-#             name="TSP",
-#             optimization_type=ioh.OptimizationType.MIN,
-#         )
-#         self.tsp = TSP(plot=False)
-    # def _evaluate(self, x):
-    #         """Evaluate the TSP tour length for permutation x."""
-    #         permutation = np.argsort(x) if isinstance(x, (np.ndarray, list)) else x
-    #         return self.tsp(permutation)
-
-class TSPProblem(ioh.problem.IntegerSingleObjective):
-    def __init__(self, instance, dimension):
-        # Bounds for the problem, e.g., each variable should be between 0 and dimension - 1
-        bounds = ioh.IntegerBounds(lb=[0] * dimension, ub=[dimension - 1] * dimension)
-        
-        # Call the parent class initializer
-        super().__init__(
-            name="TSP",
-            n_variables=dimension,
-            instance=instance,
-            is_minimization=True,
-            bounds=bounds
-        )
-        self.tsp = TSP(plot=False)  # Initialize the TSP object
-    
-    def _evaluate(self, x):
-        # Convert x into a permutation (if needed)
-        permutation = np.argsort(x) if isinstance(x, (np.ndarray, list)) else x
-        return self.tsp(permutation)
-    def _evaluate(self, x):
-        """Evaluate the TSP tour length for permutation x."""
-        permutation = np.argsort(x) if isinstance(x, (np.ndarray, list)) else x
-        return self.tsp(permutation)
 class GA:
     """Genetic Algorithm experiment and plot"""
 
@@ -740,7 +699,7 @@ class ACO_MMAS:
             self.update_pheromones()
             average_lengths.append(np.mean(lengths))
             best_lengths.append(self.best_length)
-            print(f"Iteration {iteration + 1}, best length: {self.best_length:.2f}")
+            #print(f"Iteration {iteration + 1}, best length: {self.best_length:.2f}")
             # Optional: plot the current best tour
             # if iteration % 10 == 0 or iteration == self.N_ITERATIONS - 1:
             #     self.tsp.plot_route(np.array(self.best_tour), self.best_length)
@@ -877,7 +836,7 @@ class ACO_EAS:
             self.update_pheromones(tours, lengths)
             average_lengths.append(np.mean(lengths))
             best_lengths.append(self.best_length)
-            print(f"Iteration {iteration + 1}, best length: {self.best_length:.2f}")
+            #print(f"Iteration {iteration + 1}, best length: {self.best_length:.2f}")
         return average_lengths, best_lengths
 
     def plot(self, average_lengths, best_lengths):
@@ -1071,164 +1030,6 @@ class RandomSearch():
         plt.show()
 
 
-class experiment():
-    @staticmethod
-    def ga_algorithm(problem, budget, adaptive=False, **kwargs):
-        # Instantiate GA with the TSP object from the IOH problem
-        ga = GA(problem.tsp, **kwargs)
-        evaluations = 0
-        while evaluations < budget:
-            fitness_scores = ga.evaluate(ga.POPULATION)
-            evaluations += len(ga.POPULATION)
-            parents = ga.selection(fitness_scores, ga.POPULATION, Q=2, REPETITIONS=ga.POPULATION_SIZE)
-            offspring = ga.cross_over(parents)
-            if adaptive:
-                mutated_population = ga.adaptive_mutation(offspring)
-            else:
-                mutated_population = ga.mutations(offspring)
-            ga.POPULATION = np.concatenate((parents, offspring, mutated_population))
-        best_idx = np.argmin(fitness_scores)
-        best_solution = ga.POPULATION[best_idx]
-        return best_solution
-
-    @staticmethod
-    def aco_mmas_algorithm(problem, budget, **kwargs):
-        """Run ACO-MMAS with the specified problem and budget."""
-        aco = ACO_MMAS(problem.tsp, **kwargs)  # Pass the TSP object
-        evaluations = 0
-        best_solution = None
-        best_fitness = float("inf")
-
-        while evaluations < budget:
-            # Generate solutions
-            tours = aco.construct_solutions()
-            # Evaluate fitness of each tour
-            lengths = aco.evaluate(tours)
-            # Update pheromones
-            aco.update_pheromones()
-
-            # Track the number of evaluations
-            evaluations += len(tours)
-
-            # Update the best solution
-            current_best_idx = np.argmin(lengths)
-            if lengths[current_best_idx] < best_fitness:
-                best_fitness = lengths[current_best_idx]
-                best_solution = tours[current_best_idx]
-
-        return best_solution
-
-
-    @staticmethod
-    def aco_eas_algorithm(problem, budget, **kwargs):
-        """Run ACO-EAS with the specified problem and budget."""
-        aco_eas = ACO_EAS(problem.tsp, **kwargs)  # Pass the TSP object
-        evaluations = 0
-        best_solution = None
-        best_fitness = float("inf")
-
-        while evaluations < budget:
-            # Generate solutions
-            tours = aco_eas.construct_solutions()
-            # Evaluate fitness of each tour
-            lengths = aco_eas.evaluate(tours)
-            # Update pheromones
-            aco_eas.update_pheromones()
-
-            # Track the number of evaluations
-            evaluations += len(tours)
-
-            # Update the best solution
-            current_best_idx = np.argmin(lengths)
-            if lengths[current_best_idx] < best_fitness:
-                best_fitness = lengths[current_best_idx]
-                best_solution = tours[current_best_idx]
-
-        return best_solution
-
-    @staticmethod
-    def run_experiment():
-        # Standardized experimental setup
-        N_RUNS = 10   # Number of trials
-        BUDGET = 10000  # Total number of function evaluations
-
-        # Initialize logger
-        logger = ioh.logger.Analyzer(root=".", folder_name="ioh_data", algorithm_name="compare_GA_ACO")
-        # Define the problem (42 cities)
-        dimension = 42  
-        problem = TSPProblem(dimension=dimension, instance=1)
-        problem.attach_logger(logger)
-        
-        # Check if logger is attached correctly
-        if problem.logger is not None:
-            print("Logger attached successfully.")
-        else:
-            print("Failed to attach logger.")
-            
-        
-        # Run experiments for GA with static mutation rate
-        print("Running GA (static mutation rate) experiments...")
-        for run in range(N_RUNS):
-            problem.reset()
-            experiment.ga_algorithm(
-                problem,
-                budget=BUDGET,
-                POPULATION_SIZE=50,
-                base_mutation_rate=0.1,
-                adaptive=False,
-            )
-
-        # Run experiments for GA with adaptive mutation rate
-        print("Running GA (adaptive mutation rate) experiments...")
-        for run in range(N_RUNS):
-            problem.reset()
-            experiment.ga_algorithm(
-                problem,
-                budget=BUDGET,
-                POPULATION_SIZE=50,
-                base_mutation_rate=0.1,
-                adaptive=True,
-            )
-
-        # Run experiments for ACO-MMAS
-        print("Running ACO-MMAS experiments...")
-        for run in range(N_RUNS):
-            problem.reset()
-            experiment.aco_mmas_algorithm(
-                problem,
-                budget=BUDGET,
-                N_ANTS=50,
-                alpha=1,
-                beta=2,
-                rho=0.1,
-                Q=1,
-                N_ITERATIONS=1000,  # Adjust as needed
-            )
-
-        # Run experiments for ACO-EAS
-        print("Running ACO-EAS experiments...")
-        for run in range(N_RUNS):
-            problem.reset()
-            experiment.aco_eas_algorithm(
-                problem,
-                budget=BUDGET,
-                N_ANTS=50,
-                alpha=1,
-                beta=2,
-                rho=0.1,
-                Q=1,
-                N_ITERATIONS=1000,  # Adjust as needed
-                elitism_factor=5,  # Specific to EAS
-            )
-
-        # Detach the logger after experiments
-        problem.detach_logger()
-
-        print("Data collection complete. Results saved in 'ioh_data'.")
-        print("Use IOHanalyzer or ioh_plot to visualize results.")
-
-
-
 if __name__ == "__main__":
     # Seed for reproducibility
     np.random.seed(42)
@@ -1236,13 +1037,13 @@ if __name__ == "__main__":
     # Experiment settings
     #GA
     POPULATION_SIZE = 5
-    N_REPETITIONS = 200
-    N_TIMESTEPS = 5
+    N_REPETITIONS = 5
+    N_TIMESTEPS = 1000
     #RA
     GUESSES = 10
     #ACO 
     N_ANTS = 50
-    N_ITERATIONS = 2000
+    N_ITERATIONS = 400
     
     
     #Plot best random paths search
@@ -1279,16 +1080,74 @@ if __name__ == "__main__":
         # average_lengths, best_lengths = acommas.experiment()
         # acommas.plot(average_lengths, best_lengths)
         
-        # Experiment 6: ACO with EAS, set rho between 0.02 and 0.2
+        # # Experiment 6: ACO with EAS, set rho between 0.02 and 0.2
         # aco_eas = ACO_EAS(tsp, N_ANTS=N_ANTS, alpha=1, beta=2, rho=0.05, Q=1, N_ITERATIONS=N_ITERATIONS, elitism_factor=8)
 
         # average_lengths, best_lengths = aco_eas.experiment()
         # aco_eas.plot(average_lengths, best_lengths)
-        # Experiment 7: comparing adaptive mutation GA to ACO
-        ex = experiment()
-        ex.run_experiment()
+        # # Experiment 7: comparing adaptive mutation GA to ACO
         
         
+        # Experiment 7: comparing ACO EAS and ACO MMAS with different iteration numbers to GA
+        iteration_numbers = [20, 50, 100, 200, 500, 1000, 1500, 2000]
+        repetitions = 1
+
+        aco_eas_results = []
+        aco_mmas_results = []
+        ga_adaptive_results = []
+
+        for iterations in iteration_numbers:
+            eas_lengths = []
+            mmas_lengths = []
+            ga_lengths = []
+            for _ in range(repetitions):
+                aco_eas = ACO_EAS(tsp, N_ANTS=N_ANTS, alpha=1, beta=2, rho=0.05, Q=1, N_ITERATIONS=iterations, elitism_factor=8)
+                _, best_lengths_eas = aco_eas.experiment()
+                eas_lengths.append(best_lengths_eas[-1])
+
+                acommas = ACO_MMAS(tsp, N_ANTS=N_ANTS, alpha=1, beta=5, rho=0.1, Q=24000, N_ITERATIONS=iterations)
+                _, best_lengths_mmas = acommas.experiment()
+                mmas_lengths.append(best_lengths_mmas[-1])
+
+                ga = GA(tsp, POPULATION_SIZE=POPULATION_SIZE)
+                _, best_lengths_ga = ga.experiment(1, iterations, adaptive='adaptive', mutation_rate=0.1, mutation='all', population_size=50)
+                ga_lengths.append(best_lengths_ga[-1])
+                
+                aco_eas_results.append(np.mean(eas_lengths))
+                aco_mmas_results.append(np.mean(mmas_lengths))
+                ga_adaptive_results.append(np.mean(ga_lengths))
+                print("done")
+            print(f"done with : {iterations}") 
+        plt.figure(figsize=(10, 6))
+        plt.plot(iteration_numbers, aco_eas_results, label="ACO EAS", marker='o', color='blue')
+        plt.plot(iteration_numbers, aco_mmas_results, label="ACO MMAS", marker='o', color='green')
+        plt.plot(iteration_numbers, ga_adaptive_results, label="GA Adaptive Hybrid", marker='o', color='red')
+        plt.xlabel("Number of Iterations")
+        plt.ylabel("Average Best Tour Length")
+        plt.title("Comparison of ACO EAS, ACO MMAS, and GA Adaptive Hybrid")
+        plt.legend()
+        plt.grid(True)
+        plt.show()
+        # # Experiment 8: comparing GA adaptive hybrid with different iteration numbers
+        # ga_adaptive_results = []
+
+        # for iterations in iteration_numbers:
+        #     ga_lengths = []
+        #     for _ in range(repetitions):
+        #     ga = GA(tsp, POPULATION_SIZE=POPULATION_SIZE)
+        #     _, best_lengths_ga = ga.experiment(N_REPETITIONS, iterations, adaptive='adaptive', mutation_rate=0.15, mutation='all', population_size=50)
+        #     ga_lengths.append(best_lengths_ga[-1])
+
+        #     ga_adaptive_results.append(np.mean(ga_lengths))
+
+        # plt.figure(figsize=(10, 6))
+        # plt.plot(iteration_numbers, ga_adaptive_results, label="GA Adaptive Hybrid", marker='o')
+        # plt.xlabel("Number of Iterations")
+        # plt.ylabel("Average Best Tour Length")
+        # plt.title("Comparison of GA Adaptive Hybrid")
+        # plt.legend()
+        # plt.grid(True)
+        # plt.show()
         
 # TODO 
 # check if it helps to insert (tours,lengths) in to pheromoone update in mmas and eas
