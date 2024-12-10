@@ -23,7 +23,8 @@ import matplotlib.pyplot as plt
 import svgpath2mpl
 import geopandas
 import ioh
-from ioh import problem
+#rom ioh.problem import TSP as TSPProblem
+from ioh import get_problem, ProblemClass
 # from ioh import IntegerProblem
 # from ioh import RealProblem
 # from ioh import PermutationProblem
@@ -1153,12 +1154,18 @@ class experiment():
 
         # Initialize logger
         logger = ioh.logger.Analyzer(root=".", folder_name="ioh_data", algorithm_name="compare_GA_ACO")
-        
         # Define the problem (42 cities)
         dimension = 42  
-        problem = TSPProblem(instance=1, dimension=dimension)
+        problem = TSPProblem(dimension=dimension, instance=1)
         problem.attach_logger(logger)
-
+        
+        # Check if logger is attached correctly
+        if problem.logger is not None:
+            print("Logger attached successfully.")
+        else:
+            print("Failed to attach logger.")
+            
+        
         # Run experiments for GA with static mutation rate
         print("Running GA (static mutation rate) experiments...")
         for run in range(N_RUNS):
@@ -1183,40 +1190,41 @@ class experiment():
                 adaptive=True,
             )
 
-        # print("Running ACO-MMAS experiments...")
-        # for run in range(N_RUNS):
-        #     problem.reset()
-        #     experiment.aco_mmas_algorithm(
-        #         problem,
-        #         budget=BUDGET,
-        #         N_ANTS=50,
-        #         alpha=1,
-        #         beta=2,
-        #         rho=0.1,
-        #         Q=1,
-        #         N_ITERATIONS=1000,  # Adjust as needed
-        #     )
+        # Run experiments for ACO-MMAS
+        print("Running ACO-MMAS experiments...")
+        for run in range(N_RUNS):
+            problem.reset()
+            experiment.aco_mmas_algorithm(
+                problem,
+                budget=BUDGET,
+                N_ANTS=50,
+                alpha=1,
+                beta=2,
+                rho=0.1,
+                Q=1,
+                N_ITERATIONS=1000,  # Adjust as needed
+            )
 
-        # print("Running ACO-EAS experiments...")
-        # for run in range(N_RUNS):
-        #     problem.reset()
-        #     experiment.aco_eas_algorithm(
-        #         problem,
-        #         budget=BUDGET,
-        #         N_ANTS=50,
-        #         alpha=1,
-        #         beta=2,
-        #         rho=0.1,
-        #         Q=1,
-        #         N_ITERATIONS=1000,  # Adjust as needed
-        #         elitism_factor=5,  # Specific to EAS
-        #     )
-
+        # Run experiments for ACO-EAS
+        print("Running ACO-EAS experiments...")
+        for run in range(N_RUNS):
+            problem.reset()
+            experiment.aco_eas_algorithm(
+                problem,
+                budget=BUDGET,
+                N_ANTS=50,
+                alpha=1,
+                beta=2,
+                rho=0.1,
+                Q=1,
+                N_ITERATIONS=1000,  # Adjust as needed
+                elitism_factor=5,  # Specific to EAS
+            )
 
         # Detach the logger after experiments
         problem.detach_logger()
 
-        print("Data collection complete. Results saved in 'IOH.dat'.")
+        print("Data collection complete. Results saved in 'ioh_data'.")
         print("Use IOHanalyzer or ioh_plot to visualize results.")
 
 
@@ -1279,3 +1287,8 @@ if __name__ == "__main__":
         # Experiment 7: comparing adaptive mutation GA to ACO
         ex = experiment()
         ex.run_experiment()
+        
+        
+        
+# TODO 
+# check if it helps to insert (tours,lengths) in to pheromoone update in mmas and eas
