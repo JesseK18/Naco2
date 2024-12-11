@@ -1127,6 +1127,7 @@ if __name__ == "__main__":
         plt.title("Comparison of ACO EAS, ACO MMAS, and GA Adaptive Hybrid")
         plt.legend()
         plt.grid(True)
+        plt.savefig("comparison_plot.png")
         plt.show()
         # # Experiment 8: comparing GA adaptive hybrid with different iteration numbers
         # ga_adaptive_results = []
@@ -1149,5 +1150,4 @@ if __name__ == "__main__":
         # plt.grid(True)
         # plt.show()
         
-# TODO 
-# check if it helps to insert (tours,lengths) in to pheromoone update in mmas and eas
+
