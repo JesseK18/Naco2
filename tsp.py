@@ -1032,12 +1032,12 @@ class RandomSearch():
 
 if __name__ == "__main__":
     # Seed for reproducibility
-    np.random.seed(42)
+    np.random.seed(46)
 
     # Experiment settings
     #GA
-    POPULATION_SIZE = 5
-    N_REPETITIONS = 5
+    POPULATION_SIZE = 50
+    N_REPETITIONS = 3
     N_TIMESTEPS = 1000
     #RA
     GUESSES = 10
@@ -1048,7 +1048,7 @@ if __name__ == "__main__":
     
     #Plot best random paths search
     with TSP(plot=False) as tsp:
-    #   ga = GA(tsp, POPULATION_SIZE=POPULATION_SIZE)
+        #ga = GA(tsp, POPULATION_SIZE=POPULATION_SIZE)
     
     #   # Random baseline
     #   ra = RandomSearch(tsp, guesses=GUESSES)
@@ -1056,8 +1056,8 @@ if __name__ == "__main__":
     #   ra.plot_random_paths()
     
     #   # Testing: run the experiment function 
-    #   ga.experiment(N_REPETITIONS, N_TIMESTEPS, 'adaptive', mutation_rate=0.15, mutation='all', population_size= 50)
-    #   #ga.plot(array, best_array) #plot best path and average path over timesteps over repetitions
+        # array, best_array = ga.experiment(N_REPETITIONS, N_TIMESTEPS, 'adaptive', mutation_rate=0.15, mutation='all', population_size= 50)
+        # ga.plot(array, best_array) #plot best path and average path over timesteps over repetitions
 
     # # Experiment 1: comparing mutations
     #   ga.mutation_comparison(N_REPETITIONS, N_TIMESTEPS, mutation_rate=0.3)
@@ -1068,6 +1068,7 @@ if __name__ == "__main__":
       
     #   # Experiment 3: comparing adaptive mutation GA to normal mutation GA
     #   ga.adaptive_mutation_comparison(N_REPETITIONS, N_TIMESTEPS)
+        
         # Experiment 4: ACO
         # aco = ACO(tsp, N_ANTS=N_ANTS, alpha=1, beta=2.0, rho=0.4, Q=24000, N_ITERATIONS=N_ITERATIONS)
         
@@ -1087,19 +1088,25 @@ if __name__ == "__main__":
         # aco_eas.plot(average_lengths, best_lengths)
         # # Experiment 7: comparing adaptive mutation GA to ACO
         
+        # ga = GA(tsp, POPULATION_SIZE=POPULATION_SIZE)
+        # _, best_lengths_ga = ga.experiment(N_REPETITIONS, N_TIMESTEPS, adaptive='adaptive', mutation_rate=0.1, mutation='all', population_size=50)
+        # print(f'GA Adaptive Hybrid: {best_lengths_ga[-1]:.2f}km')
         
         # Experiment 7: comparing ACO EAS and ACO MMAS with different iteration numbers to GA
-        iteration_numbers = [20, 50, 100, 200, 500, 1000, 1500, 2000]
-        repetitions = 1
+        iteration_numbers = [20, 50, 100, 200, 500, 1000, 2000]
+       # iteration_numbers = [5, 10]
+        repetitions = 5
 
         aco_eas_results = []
         aco_mmas_results = []
         ga_adaptive_results = []
+        ga_results1 = []
 
         for iterations in iteration_numbers:
             eas_lengths = []
             mmas_lengths = []
             ga_lengths = []
+            ga_lengths1 = []
             for _ in range(repetitions):
                 aco_eas = ACO_EAS(tsp, N_ANTS=N_ANTS, alpha=1, beta=2, rho=0.05, Q=1, N_ITERATIONS=iterations, elitism_factor=8)
                 _, best_lengths_eas = aco_eas.experiment()
@@ -1110,18 +1117,23 @@ if __name__ == "__main__":
                 mmas_lengths.append(best_lengths_mmas[-1])
 
                 ga = GA(tsp, POPULATION_SIZE=POPULATION_SIZE)
-                _, best_lengths_ga = ga.experiment(1, iterations, adaptive='adaptive', mutation_rate=0.1, mutation='all', population_size=50)
+                
+                _, best_lengths_ga = ga.experiment(2, iterations, adaptive='adaptive', mutation_rate=0.1, mutation='all', population_size=50)
                 ga_lengths.append(best_lengths_ga[-1])
                 
-                aco_eas_results.append(np.mean(eas_lengths))
-                aco_mmas_results.append(np.mean(mmas_lengths))
-                ga_adaptive_results.append(np.mean(ga_lengths))
+                _, best_lengths_ga1 = ga.experiment(2, iterations, adaptive='static', mutation_rate=0.1, mutation='all', population_size=50)
+                ga_lengths1.append(best_lengths_ga1[-1])
                 print("done")
+            aco_eas_results.append(np.mean(eas_lengths))
+            aco_mmas_results.append(np.mean(mmas_lengths))
+            ga_adaptive_results.append(np.mean(ga_lengths))
+            ga_results1.append(np.mean(ga_lengths1))   
             print(f"done with : {iterations}") 
         plt.figure(figsize=(10, 6))
         plt.plot(iteration_numbers, aco_eas_results, label="ACO EAS", marker='o', color='blue')
         plt.plot(iteration_numbers, aco_mmas_results, label="ACO MMAS", marker='o', color='green')
         plt.plot(iteration_numbers, ga_adaptive_results, label="GA Adaptive Hybrid", marker='o', color='red')
+        plt.plot(iteration_numbers, ga_results1, label="Non-Adaptive Hybrid", marker='o', color='orange')
         plt.xlabel("Number of Iterations")
         plt.ylabel("Average Best Tour Length")
         plt.title("Comparison of ACO EAS, ACO MMAS, and GA Adaptive Hybrid")
@@ -1129,25 +1141,8 @@ if __name__ == "__main__":
         plt.grid(True)
         plt.savefig("comparison_plot.png")
         plt.show()
-        # # Experiment 8: comparing GA adaptive hybrid with different iteration numbers
-        # ga_adaptive_results = []
-
-        # for iterations in iteration_numbers:
-        #     ga_lengths = []
-        #     for _ in range(repetitions):
-        #     ga = GA(tsp, POPULATION_SIZE=POPULATION_SIZE)
-        #     _, best_lengths_ga = ga.experiment(N_REPETITIONS, iterations, adaptive='adaptive', mutation_rate=0.15, mutation='all', population_size=50)
-        #     ga_lengths.append(best_lengths_ga[-1])
-
-        #     ga_adaptive_results.append(np.mean(ga_lengths))
-
-        # plt.figure(figsize=(10, 6))
-        # plt.plot(iteration_numbers, ga_adaptive_results, label="GA Adaptive Hybrid", marker='o')
-        # plt.xlabel("Number of Iterations")
-        # plt.ylabel("Average Best Tour Length")
-        # plt.title("Comparison of GA Adaptive Hybrid")
-        # plt.legend()
-        # plt.grid(True)
-        # plt.show()
+        
+        
+        
         
 
